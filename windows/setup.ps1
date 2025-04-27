@@ -1,246 +1,260 @@
-#!/bin/bash
-set -e
+#Requires -Version 5
+# Run with: Set-ExecutionPolicy Bypass -Scope Process -Force; .\setup.ps1
 
 # Create project directory
-PROJECT_DIR="ubuntu-amd64-project"
-echo "==> Creating project directory: $PROJECT_DIR"
-mkdir -p "$PROJECT_DIR"
-cd "$PROJECT_DIR"
+$PROJECT_DIR="ubuntu-amd64-project"
+Write-Host "==> Creating project directory: $PROJECT_DIR"
+if (-not (New-Item -ItemType Directory -Force -Path $PROJECT_DIR)) {
+    exit 1
+}
+Set-Location -Path $PROJECT_DIR
+
+# Create output directory
+New-Item -ItemType Directory -Force -Path "output" | Out-Null
 
 # Create Packer template
-echo "==> Creating Packer template for Ubuntu AMD64"
-cat > ubuntu-amd64.pkr.hcl << 'EOF'
-packer {
-  required_plugins {
-    vagrant = {
-      version = ">= 1.0.0"
-      source  = "github.com/hashicorp/vagrant"
-    }
-  }
-}
+Write-Host "==> Creating Packer template for Ubuntu AMD64"
+$packerFile = "ubuntu-amd64.pkr.hcl"
+# Write line by line to avoid multiline string issues
+$null = New-Item -ItemType File -Force -Path $packerFile
+Add-Content -Path $packerFile -Value "packer {"
+Add-Content -Path $packerFile -Value "  required_plugins {"
+Add-Content -Path $packerFile -Value "    vagrant = {"
+Add-Content -Path $packerFile -Value "      version = ""~> 1.0"""
+Add-Content -Path $packerFile -Value "      source  = ""github.com/hashicorp/packer-plugin-vagrant"""
+Add-Content -Path $packerFile -Value "    }"
+Add-Content -Path $packerFile -Value "  }"
+Add-Content -Path $packerFile -Value "}"
+Add-Content -Path $packerFile -Value ""
+Add-Content -Path $packerFile -Value "source ""null"" ""ubuntu-amd64"" {"
+Add-Content -Path $packerFile -Value "  communicator = ""none"""
+Add-Content -Path $packerFile -Value "  name = ""ubuntu-jammy64-base"""
+Add-Content -Path $packerFile -Value "}"
+Add-Content -Path $packerFile -Value ""
+Add-Content -Path $packerFile -Value "build {"
+Add-Content -Path $packerFile -Value "  sources = [""source.null.ubuntu-amd64""]"
+Add-Content -Path $packerFile -Value "  "
+Add-Content -Path $packerFile -Value "  provisioner ""shell-local"" {"
+Add-Content -Path $packerFile -Value "    inline = ["
+Add-Content -Path $packerFile -Value "      ""echo '==> Creating Vagrantfile'"""
+Add-Content -Path $packerFile -Value "      ""if (-not (vagrant box list | Select-String 'ubuntu/jammy64')) {"""
+Add-Content -Path $packerFile -Value "      ""    vagrant box add ubuntu/jammy64"""
+Add-Content -Path $packerFile -Value "      ""}"""
+Add-Content -Path $packerFile -Value "    ]"
+Add-Content -Path $packerFile -Value "  }"
+Add-Content -Path $packerFile -Value "}"
 
-# This is a special "null" builder that doesn't actually build a VM
-# Instead, we'll use provisioners to set up our Vagrant environment
-source "null" "ubuntu-amd64" {
-  communicator = "none"
-}
+# Create Vagrantfile directly
+Write-Host "==> Creating Vagrantfile"
+$vagrantFile = "output/Vagrantfile"
+$null = New-Item -ItemType File -Force -Path $vagrantFile
+Add-Content -Path $vagrantFile -Value "Vagrant.configure(""2"") do |config|"
+Add-Content -Path $vagrantFile -Value "  config.vm.box = ""ubuntu/jammy64"""
+Add-Content -Path $vagrantFile -Value "  config.vm.provider ""virtualbox"" do |vb|"
+Add-Content -Path $vagrantFile -Value "    vb.memory = 2048"
+Add-Content -Path $vagrantFile -Value "    vb.cpus = 2"
+Add-Content -Path $vagrantFile -Value "  end"
+Add-Content -Path $vagrantFile -Value "end"
 
-build {
-  sources = ["source.null.ubuntu-amd64"]
-  
-  # Create Vagrantfile
-  provisioner "shell-local" {
-    inline = [
-      "echo '==> Creating Vagrantfile'",
-      "mkdir -p output",
-      "cat > output/Vagrantfile << 'EOT'",
-      "Vagrant.configure(\"2\") do |config|",
-      "  config.vm.box = \"ubuntu/jammy64\"",
-      "  config.vm.box_version = \"20250401.0.0\"",
-      "",
-      "  config.vm.provider \"virtualbox\" do |vb|",
-      "    vb.memory = 2048",
-      "    vb.cpus = 2",
-      "    vb.customize [\"modifyvm\", :id, \"--clipboard-mode\", \"bidirectional\"]",
-      "  end",
-      "",
-      "  # Forward a port for convenient web access if needed",
-      "  config.vm.network \"forwarded_port\", guest: 80, host: 8080",
-      "",
-      "  # Display VM IP address when it boots",
-      "  config.vm.provision \"shell\", run: \"always\", inline: <<-SHELL",
-      "    echo \"\\033[0;32m\"",
-      "    echo \"=============================================\"",
-      "    echo \"VM is ready! Access information:\"",
-      "    echo \"IP address: $(hostname -I | awk '{print $1}')\"",
-      "    echo \"SSH: vagrant ssh\"",
-      "    echo \"Username: vagrant\"",
-      "    echo \"Password: vagrant\"",
-      "    echo \"Web Server (if installed): http://localhost:8080\"",
-      "    echo \"=============================================\"",
-      "    echo \"\\033[0m\"",
-      "  SHELL",
-      "end",
-      "EOT"
-    ]
-  }
+# Create README.md directly
+Write-Host "==> Creating README.md"
+$readmeFile = "output/README.md"
+$null = New-Item -ItemType File -Force -Path $readmeFile
+Add-Content -Path $readmeFile -Value "# Ubuntu AMD64 Vagrant Project for Windows"
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "This project provides a simple way to get started with Ubuntu 22.04 LTS (Jammy Jellyfish) on Windows using Vagrant and VirtualBox."
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "## Prerequisites"
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "- [VirtualBox](https://www.virtualbox.org/wiki/Downloads)"
+Add-Content -Path $readmeFile -Value "- [Vagrant](https://www.vagrantup.com/downloads)"
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "## Getting Started"
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "1. Open Command Prompt or PowerShell in this directory"
+Add-Content -Path $readmeFile -Value "2. Run the setup script:"
+Add-Content -Path $readmeFile -Value "   ```"
+Add-Content -Path $readmeFile -Value "   .\setup.ps1"
+Add-Content -Path $readmeFile -Value "   ```"
+Add-Content -Path $readmeFile -Value "3. Connect to the VM:"
+Add-Content -Path $readmeFile -Value "   ```"
+Add-Content -Path $readmeFile -Value "   vagrant ssh"
+Add-Content -Path $readmeFile -Value "   ```"
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "## VM Specifications"
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "- **OS**: Ubuntu 22.04 LTS (Jammy Jellyfish)"
+Add-Content -Path $readmeFile -Value "- **Memory**: 2GB"
+Add-Content -Path $readmeFile -Value "- **CPUs**: 2"
+Add-Content -Path $readmeFile -Value "- **Provider**: VirtualBox"
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "## Commands"
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "- Start VM: `vagrant up`"
+Add-Content -Path $readmeFile -Value "- Connect to VM: `vagrant ssh`"
+Add-Content -Path $readmeFile -Value "- Stop VM: `vagrant halt`"
+Add-Content -Path $readmeFile -Value "- Delete VM: `vagrant destroy`"
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "## Troubleshooting"
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "If you encounter plugin initialization errors, try these commands:"
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "1. Repair plugins: `vagrant plugin repair`"
+Add-Content -Path $readmeFile -Value "2. Reinstall plugins: `vagrant plugin expunge --reinstall`"
+Add-Content -Path $readmeFile -Value "3. Update plugins: `vagrant plugin update`"
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "## Support"
+Add-Content -Path $readmeFile -Value ""
+Add-Content -Path $readmeFile -Value "For issues or questions, please refer to:"
+Add-Content -Path $readmeFile -Value "- [VirtualBox Documentation](https://www.virtualbox.org/wiki/Documentation)"
+Add-Content -Path $readmeFile -Value "- [Vagrant Documentation](https://www.vagrantup.com/docs)"
 
-  # Create setup script (Windows batch file)
-  provisioner "shell-local" {
-    inline = [
-      "echo '==> Creating Windows setup script'",
-      "cat > output/setup.bat << 'EOT'",
-      "@echo off",
-      "setlocal",
-      "",
-      "echo === Ubuntu AMD64 VM Setup ===",
-      "",
-      ":: Check for VirtualBox",
-      "where VBoxManage >nul 2>&1",
-      "if %ERRORLEVEL% neq 0 (",
-      "  echo ERROR: VirtualBox not found. Please install VirtualBox and add it to your PATH.",
-      "  goto :error",
-      ")",
-      "",
-      ":: Check for Vagrant",
-      "where vagrant >nul 2>&1",
-      "if %ERRORLEVEL% neq 0 (",
-      "  echo ERROR: Vagrant not found. Please install Vagrant and add it to your PATH.",
-      "  goto :error",
-      ")",
-      "",
-      ":: Add the box if not already added",
-      "vagrant box list | findstr \"ubuntu/jammy64\" >nul",
-      "if %ERRORLEVEL% neq 0 (",
-      "  echo === Adding Ubuntu box ===",
-      "  vagrant box add ubuntu/jammy64 --provider virtualbox",
-      "  if %ERRORLEVEL% neq 0 goto :error",
-      ")",
-      "",
-      ":: Start the VM",
-      "echo === Starting Ubuntu VM ===",
-      "vagrant up --provider=virtualbox",
-      "if %ERRORLEVEL% neq 0 goto :error",
-      "",
-      "echo.",
-      "echo === Success! ===",
-      "echo Your Ubuntu VM is now running.",
-      "echo To connect via SSH, type: vagrant ssh",
-      "echo.",
-      "goto :end",
-      "",
-      ":error",
-      "echo.",
-      "echo There was an error setting up the VM. Please check the error messages above.",
-      "exit /b 1",
-      "",
-      ":end",
-      "EOT"
-    ]
-  }
-
-  # Create PowerShell version of setup script
-  provisioner "shell-local" {
-    inline = [
-      "echo '==> Creating PowerShell setup script'",
-      "cat > output/setup.ps1 << 'EOT'",
-      "Write-Host \"=== Ubuntu AMD64 VM Setup ===\" -ForegroundColor Green",
-      "",
-      "# Check for VirtualBox",
-      "if (-not (Get-Command \"VBoxManage\" -ErrorAction SilentlyContinue)) {",
-      "    Write-Host \"ERROR: VirtualBox not found. Please install VirtualBox and add it to your PATH.\" -ForegroundColor Red",
-      "    exit 1",
-      "}",
-      "",
-      "# Check for Vagrant",
-      "if (-not (Get-Command \"vagrant\" -ErrorAction SilentlyContinue)) {",
-      "    Write-Host \"ERROR: Vagrant not found. Please install Vagrant and add it to your PATH.\" -ForegroundColor Red",
-      "    exit 1",
-      "}",
-      "",
-      "# Add the box if not already added",
-      "$boxExists = vagrant box list | Select-String \"ubuntu/jammy64\"",
-      "if (-not $boxExists) {",
-      "    Write-Host \"=== Adding Ubuntu box ===\" -ForegroundColor Cyan",
-      "    vagrant box add ubuntu/jammy64 --provider virtualbox",
-      "    if ($LASTEXITCODE -ne 0) {",
-      "        Write-Host \"Error adding Vagrant box\" -ForegroundColor Red",
-      "        exit 1",
-      "    }",
-      "}",
-      "",
-      "# Start the VM",
-      "Write-Host \"=== Starting Ubuntu VM ===\" -ForegroundColor Cyan",
-      "vagrant up --provider=virtualbox",
-      "if ($LASTEXITCODE -ne 0) {",
-      "    Write-Host \"Error starting VM\" -ForegroundColor Red",
-      "    exit 1",
-      "}",
-      "",
-      "Write-Host \"`nSuccess! Your Ubuntu VM is now running.\" -ForegroundColor Green",
-      "Write-Host \"To connect via SSH, type: vagrant ssh`n\"",
-      "EOT"
-    ]
-  }
-
-  # Create README file
-  provisioner "shell-local" {
-    inline = [
-      "echo '==> Creating README'",
-      "cat > output/README.md << 'EOT'",
-      "# Ubuntu AMD64 Vagrant Project for Windows",
-      "",
-      "This project sets up an Ubuntu 22.04 AMD64 virtual machine using Vagrant and VirtualBox.",
-      "",
-      "## Requirements",
-      "",
-      "- Windows 10/11 with Intel/AMD processor",
-      "- VirtualBox installed",
-      "- Vagrant installed",
-      "",
-      "## Getting Started",
-      "",
-      "1. Run the setup script:",
-      "   - Double-click `setup.bat`, or",
-      "   - Right-click `setup.ps1` and select \"Run with PowerShell\"",
-      "",
-      "2. Connect to the VM:",
-      "   ```",
-      "   vagrant ssh",
-      "   ```",
-      "",
-      "3. When finished, you can stop the VM with:",
-      "   ```",
-      "   vagrant halt",
-      "   ```",
-      "",
-      "4. Or destroy it completely:",
-      "   ```",
-      "   vagrant destroy",
-      "   ```",
-      "",
-      "## Note for Students",
-      "",
-      "This VM is pre-configured with:",
-      "- Ubuntu 22.04 LTS (AMD64)",
-      "- 2GB RAM",
-      "- 2 CPU cores",
-      "- Port 80 forwarded to host port 8080",
-      "- Username: vagrant",
-      "- Password: vagrant",
-      "- SSH enabled",
-      "EOT"
-    ]
-  }
-}
-EOF
+# Create setup.ps1 for the output directory with troubleshooting
+Write-Host "==> Creating setup.ps1"
+$setupFile = "output/setup.ps1"
+$null = New-Item -ItemType File -Force -Path $setupFile
+Add-Content -Path $setupFile -Value "# Check for VirtualBox and Vagrant"
+Add-Content -Path $setupFile -Value "`$errorCount = 0"
+Add-Content -Path $setupFile -Value ""
+Add-Content -Path $setupFile -Value "Write-Host ""Checking for VirtualBox... "" -NoNewline"
+Add-Content -Path $setupFile -Value "try {"
+Add-Content -Path $setupFile -Value "    `$vboxVersion = (& ""VBoxManage"" --version 2>`$null)"
+Add-Content -Path $setupFile -Value "    if (`$LASTEXITCODE -eq 0) {"
+Add-Content -Path $setupFile -Value "        Write-Host ""OK (`$vboxVersion)"" -ForegroundColor Green"
+Add-Content -Path $setupFile -Value "    } else {"
+Add-Content -Path $setupFile -Value "        Write-Host ""NOT FOUND"" -ForegroundColor Red"
+Add-Content -Path $setupFile -Value "        Write-Host ""Please install VirtualBox from https://www.virtualbox.org/wiki/Downloads"" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "        `$errorCount++"
+Add-Content -Path $setupFile -Value "    }"
+Add-Content -Path $setupFile -Value "} catch {"
+Add-Content -Path $setupFile -Value "    Write-Host ""NOT FOUND"" -ForegroundColor Red"
+Add-Content -Path $setupFile -Value "    Write-Host ""Please install VirtualBox from https://www.virtualbox.org/wiki/Downloads"" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "    `$errorCount++"
+Add-Content -Path $setupFile -Value "}"
+Add-Content -Path $setupFile -Value ""
+Add-Content -Path $setupFile -Value "Write-Host ""Checking for Vagrant... "" -NoNewline"
+Add-Content -Path $setupFile -Value "try {"
+Add-Content -Path $setupFile -Value "    `$vagrantVersion = (& ""vagrant"" --version 2>`$null)"
+Add-Content -Path $setupFile -Value "    if (`$LASTEXITCODE -eq 0) {"
+Add-Content -Path $setupFile -Value "        Write-Host ""OK (`$vagrantVersion)"" -ForegroundColor Green"
+Add-Content -Path $setupFile -Value "    } else {"
+Add-Content -Path $setupFile -Value "        Write-Host ""NOT FOUND"" -ForegroundColor Red"
+Add-Content -Path $setupFile -Value "        Write-Host ""Please install Vagrant from https://www.vagrantup.com/downloads"" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "        `$errorCount++"
+Add-Content -Path $setupFile -Value "    }"
+Add-Content -Path $setupFile -Value "} catch {"
+Add-Content -Path $setupFile -Value "    Write-Host ""NOT FOUND"" -ForegroundColor Red"
+Add-Content -Path $setupFile -Value "    Write-Host ""Please install Vagrant from https://www.vagrantup.com/downloads"" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "    `$errorCount++"
+Add-Content -Path $setupFile -Value "}"
+Add-Content -Path $setupFile -Value ""
+Add-Content -Path $setupFile -Value "if (`$errorCount -gt 0) {"
+Add-Content -Path $setupFile -Value "    Write-Host ""`nPlease install the missing dependencies and try again."" -ForegroundColor Red"
+Add-Content -Path $setupFile -Value "    exit 1"
+Add-Content -Path $setupFile -Value "}"
+Add-Content -Path $setupFile -Value ""
+Add-Content -Path $setupFile -Value "# Check for VirtualBox virtualization support"
+Add-Content -Path $setupFile -Value "Write-Host ""Checking for virtualization support... "" -NoNewline"
+Add-Content -Path $setupFile -Value "try {"
+Add-Content -Path $setupFile -Value "    `$hyperv = Get-WindowsOptionalFeature -FeatureName Microsoft-Hyper-V-All -Online -ErrorAction SilentlyContinue"
+Add-Content -Path $setupFile -Value "    if (`$hyperv -and `$hyperv.State -eq ""Enabled"") {"
+Add-Content -Path $setupFile -Value "        Write-Host ""WARNING: Hyper-V is enabled"" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "        Write-Host ""VirtualBox may have conflicts with Hyper-V. You may need to disable Hyper-V."" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "    } else {"
+Add-Content -Path $setupFile -Value "        Write-Host ""OK"" -ForegroundColor Green"
+Add-Content -Path $setupFile -Value "    }"
+Add-Content -Path $setupFile -Value "} catch {"
+Add-Content -Path $setupFile -Value "    Write-Host ""Could not check Hyper-V status"" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "}"
+Add-Content -Path $setupFile -Value ""
+Add-Content -Path $setupFile -Value "# Check if Ubuntu box exists"
+Add-Content -Path $setupFile -Value "Write-Host ""Checking for Ubuntu Jammy64 box... "" -NoNewline"
+Add-Content -Path $setupFile -Value "`$boxExists = (vagrant box list | Select-String ""ubuntu/jammy64"")"
+Add-Content -Path $setupFile -Value "if (-not `$boxExists) {"
+Add-Content -Path $setupFile -Value "    Write-Host ""ADDING"" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "    vagrant box add ubuntu/jammy64"
+Add-Content -Path $setupFile -Value "} else {"
+Add-Content -Path $setupFile -Value "    Write-Host ""OK"" -ForegroundColor Green"
+Add-Content -Path $setupFile -Value "}"
+Add-Content -Path $setupFile -Value ""
+Add-Content -Path $setupFile -Value "# Check Vagrant plugins"
+Add-Content -Path $setupFile -Value "Write-Host ""Checking Vagrant plugins... "" -NoNewline"
+Add-Content -Path $setupFile -Value "`$pluginCheck = (vagrant plugin list 2>&1)"
+Add-Content -Path $setupFile -Value "if (`$pluginCheck -match ""No plugins"" -or `$LASTEXITCODE -ne 0) {"
+Add-Content -Path $setupFile -Value "    Write-Host ""No plugins installed or plugin issue detected"" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "} else {"
+Add-Content -Path $setupFile -Value "    Write-Host ""OK"" -ForegroundColor Green"
+Add-Content -Path $setupFile -Value "}"
+Add-Content -Path $setupFile -Value ""
+Add-Content -Path $setupFile -Value "# Start VM"
+Add-Content -Path $setupFile -Value "Write-Host ""`nStarting VM... This may take a few minutes."" -ForegroundColor Cyan"
+Add-Content -Path $setupFile -Value "vagrant up"
+Add-Content -Path $setupFile -Value ""
+Add-Content -Path $setupFile -Value "if (`$LASTEXITCODE -ne 0) {"
+Add-Content -Path $setupFile -Value "    Write-Host ""`nFailed to start VM. Running troubleshooting steps..."" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "    Write-Host ""1. Trying to repair Vagrant plugins..."" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "    vagrant plugin repair"
+Add-Content -Path $setupFile -Value "    "
+Add-Content -Path $setupFile -Value "    Write-Host ""2. Trying again with Vagrant up..."" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "    vagrant up"
+Add-Content -Path $setupFile -Value "    "
+Add-Content -Path $setupFile -Value "    if (`$LASTEXITCODE -ne 0) {"
+Add-Content -Path $setupFile -Value "        Write-Host ""3. Plugin repair didn't fix the issue. Trying plugin expunge and reinstall..."" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "        vagrant plugin expunge --reinstall"
+Add-Content -Path $setupFile -Value "        "
+Add-Content -Path $setupFile -Value "        Write-Host ""4. Trying again with Vagrant up..."" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "        vagrant up"
+Add-Content -Path $setupFile -Value "        "
+Add-Content -Path $setupFile -Value "        if (`$LASTEXITCODE -ne 0) {"
+Add-Content -Path $setupFile -Value "            Write-Host ""5. Plugin expunge didn't fix the issue. Trying plugin update..."" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "            vagrant plugin update"
+Add-Content -Path $setupFile -Value "            "
+Add-Content -Path $setupFile -Value "            Write-Host ""6. Trying again with Vagrant up..."" -ForegroundColor Yellow"
+Add-Content -Path $setupFile -Value "            vagrant up"
+Add-Content -Path $setupFile -Value "            "
+Add-Content -Path $setupFile -Value "            if (`$LASTEXITCODE -ne 0) {"
+Add-Content -Path $setupFile -Value "                Write-Host ""`nAll troubleshooting steps failed. Please check these potential issues:"" -ForegroundColor Red"
+Add-Content -Path $setupFile -Value "                Write-Host ""- Make sure VirtualBox and Vagrant are correctly installed"" -ForegroundColor Red"
+Add-Content -Path $setupFile -Value "                Write-Host ""- Check that virtualization is enabled in your BIOS/UEFI settings"" -ForegroundColor Red"
+Add-Content -Path $setupFile -Value "                Write-Host ""- Ensure no conflicting virtualization software is running (Hyper-V, VMware, etc.)"" -ForegroundColor Red"
+Add-Content -Path $setupFile -Value "                Write-Host ""- Try running the commands as Administrator"" -ForegroundColor Red"
+Add-Content -Path $setupFile -Value "                Write-Host ""- Check the Vagrant documentation for more help: https://www.vagrantup.com/docs"" -ForegroundColor Red"
+Add-Content -Path $setupFile -Value "                exit 1"
+Add-Content -Path $setupFile -Value "            }"
+Add-Content -Path $setupFile -Value "        }"
+Add-Content -Path $setupFile -Value "    }"
+Add-Content -Path $setupFile -Value "}"
+Add-Content -Path $setupFile -Value ""
+Add-Content -Path $setupFile -Value "Write-Host ""`nVM is now running!"" -ForegroundColor Green"
+Add-Content -Path $setupFile -Value "Write-Host ""Connect to the VM with: vagrant ssh"" -ForegroundColor Cyan"
 
 # Initialize and run Packer
-echo "==> Initializing Packer"
+Write-Host "==> Initializing Packer"
 packer init ubuntu-amd64.pkr.hcl
-
-echo "==> Building with Packer"
+Write-Host "==> Building with Packer"
 packer build ubuntu-amd64.pkr.hcl
 
-# Move to the output directory
-cd output
-
 # Display completion message
-echo ""
-echo "=================================================================="
-echo "Setup complete! Your Ubuntu AMD64 environment for Windows is ready."
-echo ""
-echo "To start the VM, run setup.bat or setup.ps1 from the output directory:"
-echo "  cd $PROJECT_DIR/output"
-echo "  ./setup.bat   # Command Prompt"
-echo "  ./setup.ps1   # PowerShell"
-echo ""
-echo "This will:"
-echo "  1. Check for VirtualBox and Vagrant"
-echo "  2. Add the Ubuntu AMD64 box if not already added"
-echo "  3. Start the VM with VirtualBox"
-echo "  4. Display connection information"
-echo ""
-echo "Once the VM is running, you can connect with:"
-echo "  vagrant ssh"
-echo "=================================================================="
+Write-Host ""
+Write-Host "=================================================================="
+Write-Host "Setup complete! Your Ubuntu AMD64 environment for Windows is ready."
+Write-Host ""
+Write-Host "To start the VM, run setup.ps1 from the output directory:"
+Write-Host "  cd $PROJECT_DIR\output"
+Write-Host "  .\setup.ps1   # PowerShell"
+Write-Host ""
+Write-Host "This will:"
+Write-Host "  1. Check for VirtualBox and Vagrant"
+Write-Host "  2. Add the Ubuntu AMD64 box if not already added"
+Write-Host "  3. Start the VM with VirtualBox"
+Write-Host "  4. Display connection information"
+Write-Host ""
+Write-Host "Once the VM is running, you can connect with:"
+Write-Host "  vagrant ssh"
+Write-Host ""
+Write-Host "If you encounter plugin initialization errors, the setup script will"
+Write-Host "automatically attempt to fix them with these commands:"
+Write-Host "  1. vagrant plugin repair"
+Write-Host "  2. vagrant plugin expunge --reinstall"
+Write-Host "  3. vagrant plugin update"
+Write-Host "=================================================================="
